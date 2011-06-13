@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 """
-Rotate Backups script for Minecraft
-==============================================
+Rotate Minecraft backups script
+===============================
 
-minecraft service script makes copies of the minecraft dir and stores
-them by default in /var/backups/minecraft.  There's just one little
-problem. If you have the cron set to make hourly backups, each hour's
-backup will overwrite the previous hour's. By running this rotator
-script one per hour shortly *before* your hourly backup cron runs, we
-can save 24 houly backups, seven daily backups and an arbitrary number
-of weekly backups.
+This script is designed to be used with a minecraft service script
+(/etc/init.d/minecraft) that tars and compresses the minecraft world directory.
+These backups accumulate, taking up disk space.
+
+Running this rotator script one per hour shortly *before* your hourly backup
+cron runs, we can save 24 houly backups, seven daily backups and an arbitrary
+number of weekly backups.
 
 Here's what the script will do:
 
@@ -22,28 +22,28 @@ Here's what the script will do:
 This will effectively turn a user_backups dir like this:
 
 backups/
-  world.tar.gz
-
+  world.tar.bzip2
 
 ...into this:
 
 user_backups_archive/
 world/
    hourly/
-      world.2008-01-01.tar.gz
+      world-2008-01-01.tar.bzip2
 
-Those hourly tarballs will continue to pile up for the first 24 hours, after which a daily directory will appear.
-After 7 days, another directory will appear for the weekly tarballs as well.
+Those hourly tarballs will continue to pile up for the first 24 hours, after
+which a daily directory will appear.  After 7 days, another directory will
+appear for the weekly tarballs as well.
 
 How to install
 --------------------------------------------------
 1. Place this script somewhere on your server, for example: /usr/local/bin/rotate_minecraft_backups.py
-2. chmod 700 /usr/local/bin/rotate_minecraft_backups.py 
+2. chmod a+x /usr/local/bin/rotate_minecraft_backups.py 
 3. Add a cron like this -->  30 * * * * /usr/local/bin/rotate_minecraft_backups.py > /dev/null
 
-In step three, we added a cronjob for 30 minutes after each hour. This would be a good setting if for
-example your backups cron runs every hour on the hour. It's best to do all your rotating shortly *before*
-your backups.
+In step three, we added a cronjob for 30 minutes after each hour. This would be
+a good setting if for example your backups cron runs every hour on the hour.
+It's best to do all your rotating shortly *before* your backups.
 
 This script is based on the DirectAdmin backup script written by Sean Schertell
 Modified for Minecraft by Adam Feuer
@@ -221,8 +221,6 @@ def is_backup(filename):
         
 ###################################################
 
-
-
 # Make sure backups_dir actually exists
 if not os.path.isdir(backups_dir):
     print "Unable to find backups directory: %s" % backups_dir
@@ -247,7 +245,3 @@ for account in Account.collect():
     
 sys.exit(0)
 
-
-
-
-#########################################################
