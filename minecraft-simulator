@@ -1,0 +1,58 @@
+#!/bin/bash
+# /etc/init.d/minecraft
+# version 0.3.2 2011-01-27 (YYYY-MM-DD)
+
+### BEGIN INIT INFO
+# Provides:   minecraft
+# Required-Start: $local_fs $remote_fs
+# Required-Stop:  $local_fs $remote_fs
+# Should-Start:   $network
+# Should-Stop:    $network
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Short-Description:    Minecraft server
+# Description:    Starts the minecraft server
+### END INIT INFO
+
+#Settings
+SERVICE='minecraft_server.jar'
+USERNAME="adamf"
+MCPATH='/home/adamf/minecraft'
+WORLD='world'
+CPU_COUNT=1
+BACKUPPATH='/home/adamf/minecraft/backups'
+
+ME=`whoami`
+as_user() {
+  if [ $ME == $USERNAME ] ; then
+    bash -c "$1"
+  else
+    su - $USERNAME -c "$1"
+  fi
+}
+
+mc_backup() {
+   if [ ! -d $BACKUPPATH ] ; then
+     mkdir $BACKUPPATH
+   fi
+   echo "Backing up minecraft $WORLD"
+   as_user "cd $MCPATH && tar jcf $BACKUPPATH/$WORLD-`date "+%Y-%m-%d-%H%M"`.tar.bzip2 $WORLD"
+   echo "Backed up $WORLD"
+   echo "Backing up the minecraft server executable"
+   as_user "cd $MCPATH && cp minecraft_server.jar \"$BACKUPPATH/minecraft_server-`date "+%Y-%m-%d-%H%M"`.jar\""
+   echo "Backup complete"
+}
+
+
+#Start-Stop here
+case "$1" in
+ backup)
+    mc_backup
+    ;;
+  *)
+  echo "Usage: minecraft-simulator {backup}"
+  exit 1
+  ;;
+esac
+
+exit 0
