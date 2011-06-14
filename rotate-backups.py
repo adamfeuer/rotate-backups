@@ -56,7 +56,7 @@ The config file format follows the Python ConfigParser format (http://docs.pytho
 [Settings]
 backups_dir = /home/adamf/minecraft/backups
 archives_dir = /home/adamf/minecraft/backups-archives
-hourly_backup_hour = 11
+hourly_backup_hour = 23
 weekly_backup_day = 6
 max_weekly_backups = 52
 backup_extensions = ".tar.bzip2",".jar"
@@ -88,10 +88,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 # Default Settings
 # Note these can also be changed in /etc/defaults/rotate-minecraft-backups or $HOME/.rotate-minecraft-backupsrc
 
-default_backups_dir        = '/home/adamf/minecraft/backups'
-default_archives_dir       = '/home/adamf/minecraft/backups-archives/'
+default_backups_dir        = '/var/backups/minecraft/backups'
+default_archives_dir       = '/var/backups/minecraft/backups-archives/'
+default_hourly_backup_hour = 23 # 0-23
 default_weekly_backup_day  = 6  # 0-6, Monday-Sunday
-default_hourly_backup_hour = 11  # 0-6, Monday-Sunday
 default_max_weekly_backups = 52
 default_backup_extensions  = ['.tar.bzip2', '.jar'] # list of file extensions that will be backed up
 
