@@ -35,6 +35,7 @@ Those hourly tarballs will continue to pile up for the first 24 hours, after
 which a daily directory will appear.  After 7 days, another directory will
 appear for the weekly tarballs as well.
 
+
 How to install
 --------------------------------------------------
 1. Place this script somewhere on your server, for example: /usr/local/bin/rotate_minecraft_backups.py
@@ -44,6 +45,25 @@ How to install
 In step three, we added a cronjob for 30 minutes after each hour. This would be
 a good setting if for example your backups cron runs every hour on the hour.
 It's best to do all your rotating shortly *before* your backups.
+
+
+How to configure
+---------------------------------------------------
+You can edit the defaults in the script below, or create a config file in /etc/defaults/rotate-minecraft-backups or $HOME/.rotate-minecraft-backupsrc 
+
+The config file format follows the Python ConfigParser format (http://docs.python.org/library/configparser.html). Here is an example:
+
+[Settings]
+backups_dir = /home/adamf/minecraft/backups
+archives_dir = /home/adamf/minecraft/backups-archives
+hourly_backup_hour = 11
+weekly_backup_day = 6
+max_weekly_backups = 52
+backup_extensions = ".tar.bzip2",".jar"
+
+
+License
+---------------------------------------------------
 
 This script is based on the DirectAdmin backup script written by Sean Schertell
 Modified for Minecraft by Adam Feuer
@@ -65,50 +85,92 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 #################################################
+# Default Settings
+# Note these can also be changed in /etc/defaults/rotate-minecraft-backups or $HOME/.rotate-minecraft-backupsrc
 
-
-# User Settings
-
-backups_dir        = '/home/adamf/minecraft/backups'
-archives_dir       = '/home/adamf/minecraft/backups-archives/'
-weekly_backup_day  = 6  # 0-6, Monday-Sunday
-hourly_backup_hour = 11  # 0-6, Monday-Sunday
-max_weekly_backups = 52
-backup_extensions    = ['.tar.bzip2', '.jar'] # list of file extensions that will be backed up
-
+default_backups_dir        = '/home/adamf/minecraft/backups'
+default_archives_dir       = '/home/adamf/minecraft/backups-archives/'
+default_weekly_backup_day  = 6  # 0-6, Monday-Sunday
+default_hourly_backup_hour = 11  # 0-6, Monday-Sunday
+default_max_weekly_backups = 52
+default_backup_extensions  = ['.tar.bzip2', '.jar'] # list of file extensions that will be backed up
 
 #################################################
+
+import os, sys, time, re, csv, ConfigParser, StringIO
+from datetime import datetime, timedelta
 
 HOURLY = 'hourly'
 DAILY  = 'daily'
 WEEKLY = 'weekly'
 
-import os, sys, time, re
-from datetime import datetime, timedelta
-
 class Account:
-
-   global backups_dir, archives_dir, weekly_backup_day, max_weekly_backups
+   already_read_config = False
+   backups_dir = default_backups_dir
+   archives_dir = default_archives_dir
+   hourly_backup_hour = default_hourly_backup_hour
+   weekly_backup_day = default_weekly_backup_day
+   max_weekly_backups = default_max_weekly_backups
+   backup_extensions = default_backup_extensions
 
    def __init__(self, account_name):
       self.name = account_name
-      self.path_to_hourly = '%s/%s/hourly/' % (archives_dir, self.name)
-      self.path_to_daily = '%s/%s/daily/' % (archives_dir, self.name)
-      self.path_to_weekly = '%s/%s/weekly/' % (archives_dir, self.name)
+      self.path_to_hourly = '%s/%s/hourly/' % (Account.archives_dir, self.name)
+      self.path_to_daily = '%s/%s/daily/' % (Account.archives_dir, self.name)
+      self.path_to_weekly = '%s/%s/weekly/' % (Account.archives_dir, self.name)
+      self.read_config()
 
    @classmethod
+   def read_config(self):
+      if (Account.already_read_config):
+         return
+      config = ConfigParser.ConfigParser()
+      config.read(['/etc/defaults/rotate-minecraft-backups', os.path.join(os.getenv("HOME"), ".rotate-minecraft-backupsrc")])
+      Account.backups_dir = config.get('Settings', 'backups_dir')
+      Account.archives_dir = config.get('Settings', 'archives_dir')
+      Account.weekly_backup_day = config.getint('Settings', 'weekly_backup_day')
+      Account.hourly_backup_hour = config.getint('Settings', 'hourly_backup_hour')
+      Account.max_weekly_backups = config.getint('Settings', 'max_weekly_backups')
+      backup_extensions_string = config.get('Settings', 'backup_extensions')
+      Account.backup_extensions = Account.parse_extensions(backup_extensions_string)
+      Account.check_dirs()
+      Account.already_read_config = True
+   
+   @classmethod
+   def parse_extensions(self, extensions_string):
+      parser = csv.reader(StringIO.StringIO(extensions_string))
+      return list(parser)[0]
+ 
+   @classmethod
+   def check_dirs(self):
+      # Make sure backups_dir actually exists
+      if not os.path.isdir(Account.backups_dir):
+         print "Unable to find backups directory: %s" % Account.backups_dir
+         sys.exit(1)
+
+      # Make sure archives_dir actually exists
+      if not os.path.isdir(Account.archives_dir):
+         try:
+            os.mkdir(Account.archives_dir)
+         except:
+            print "Unable to create archives directory: %s" % Account.archives_dir
+            sys.exit(1)
+ 
+   @classmethod
    def rotate_new_arrivals(self):
-      for filename in os.listdir(backups_dir):
+      Account.read_config()
+      for filename in os.listdir(Account.backups_dir):
          if is_backup(filename):
-            new_arrival = Backup(os.path.join(backups_dir, filename))
-            new_arrival.move_to(HOURLY)
+            new_arrival = Backup(os.path.join(Account.backups_dir, filename))
+            new_arrival.move_to(HOURLY, Account.archives_dir)
 
    @classmethod
    def collect(object):
       """Return a collection of account objects for all accounts in backup dir"""
+      Account.read_config()
       accounts = []
       # Append all account names from archives_dir
-      for account_name in os.listdir(archives_dir):
+      for account_name in os.listdir(Account.archives_dir):
          accounts.append(account_name)
       accounts = sorted(list(set(accounts))) # Uniquify
       return map(Account, accounts)
@@ -118,11 +180,11 @@ class Account:
       for hourly in self.get_backups_in(HOURLY):
          if hourly.date < twelve_hours_ago:
             # This houly is more than 24 hours old. Move to daily or delete.
-            if hourly.date.hour() == hourly_backup_hour:
-               print '%s equals %s' % (hourly.date.hour(), hourly_backup_hour)
-               hourly.move_to(DAILY)
+            if hourly.date.hour() == Account.hourly_backup_hour:
+               print '%s equals %s' % (hourly.date.hour(), Account.hourly_backup_hour)
+               hourly.move_to(DAILY, Account.archives_dir)
             else:
-               print '%s is not %s' % (hourly.date.hour(), hourly_backup_hour)
+               print '%s is not %s' % (hourly.date.hour(), Account.hourly_backup_hour)
                hourly.remove()
    
    def rotate_dailies(self):
@@ -130,15 +192,15 @@ class Account:
       for daily in self.get_backups_in(DAILY):
          if daily.date < seven_days_ago:
             # This daily is more than seven days old. Move to weekly or delete.
-            if daily.date.weekday() == weekly_backup_day:
-               print '%s equals %s' % (daily.date.weekday(), weekly_backup_day)
-               daily.move_to(WEEKLY)
+            if daily.date.weekday() == Account.weekly_backup_day:
+               print '%s equals %s' % (daily.date.weekday(), Account.weekly_backup_day)
+               daily.move_to(WEEKLY, Account.archives_dir)
             else:
-               print '%s is not %s' % (daily.date.weekday(), weekly_backup_day)
+               print '%s is not %s' % (daily.date.weekday(), Account.weekly_backup_day)
                daily.remove()
    
    def rotate_weeklies(self):
-      expiration_date = datetime.today() - timedelta(days = 7 * max_weekly_backups)
+      expiration_date = datetime.today() - timedelta(days = 7 * Account.max_weekly_backups)
       for weekly in self.get_backups_in(WEEKLY):
          if weekly.date < expiration_date:
             weekly.remove()
@@ -155,8 +217,6 @@ class Account:
     
 class Backup:
 
-   global backups_dir, archives_dir, weekly_backup_day, max_weekly_backups
-   
    def __init__(self, path_to_file):
       """Instantiation also rewrites the filename if not already done (prepends date.)"""
       self.path_to_file = path_to_file
@@ -166,10 +226,10 @@ class Backup:
       self.account = self.params[0]        
       self.date = self.get_datetime_obj()
    
-   def move_to(self, directory):
+   def move_to(self, directory, archives_dir):
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
       try:
-          print 'moving to %s' % new_filepath
+          print 'moving %s to %s' % (self.path_to_file, new_filepath)
           os.renames(self.path_to_file, new_filepath)
       except:
           print 'Unable move latest backups into %s/ directory.' % directory
@@ -213,7 +273,7 @@ class Backup:
    
    
 def is_backup(filename):
-   for extension in backup_extensions:
+   for extension in Account.backup_extensions:
       if filename.endswith(extension):
           return True
    return False
@@ -221,19 +281,7 @@ def is_backup(filename):
         
 ###################################################
 
-# Make sure backups_dir actually exists
-if not os.path.isdir(backups_dir):
-    print "Unable to find backups directory: %s" % backups_dir
-    sys.exit(1)
-
-# Make sure archives_dir actually exists
-if not os.path.isdir(archives_dir):
-    try:
-        os.mkdir(archives_dir)
-    except:
-        print "Unable to create archives directory: %s" % archives_dir
-        sys.exit(1)
-                
+               
 # For each account, rotate out new_arrivals, old dailies, old weeklies
 
 Account.rotate_new_arrivals()
