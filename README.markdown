@@ -78,7 +78,8 @@ Contact
 
 If you have comments or improvements, let me know:
 
-Adam Feuer <adamf@pobox.com>
+Adam Feuer
+adamf@pobox.com
 http://adamfeuer.com
 
 
