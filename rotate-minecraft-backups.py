@@ -242,7 +242,7 @@ class Backup:
    
    def format_filename(self):
       """If this filename hasn't yet been prepended with the date, do that now"""
-      # Does the filename start with a date?
+      # Does the filename include a date?
       path_parts = os.path.split(self.path_to_file)
       filename = path_parts[-1]
       parent_dir = os.sep + os.path.join(*path_parts[:-1])
