@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
 """
-Rotate Minecraft backups script
+Rotate backups script
 ===============================
 
-This script is designed to be used with a minecraft service script
-(/etc/init.d/minecraft) that tars and compresses the minecraft world directory.
-These backups accumulate, taking up disk space.
+This script is designed to be used by processes that create tarred and
+compressed backups every hour or every day.  These backups accumulate, taking
+up disk space.
 
-Running this rotator script one per hour shortly *before* your hourly backup
+Running this rotator script once per hour shortly *before* your hourly backup
 cron runs, we can save 24 houly backups, seven daily backups and an arbitrary
 number of weekly backups.
 
@@ -35,12 +35,16 @@ Those hourly tarballs will continue to pile up for the first 24 hours, after
 which a daily directory will appear.  After 7 days, another directory will
 appear for the weekly tarballs as well.
 
+Backups are moved from the incoming arrivals directory to the archives. If you
+do not produce hourly backups, but only produce daily backups, they system will
+only save the daily backups.
+
 
 How to install
 --------------------------------------------------
-1. Place this script somewhere on your server, for example: /usr/local/bin/rotate_minecraft_backups.py
-2. chmod a+x /usr/local/bin/rotate_minecraft_backups.py 
-3. Add a cron like this -->  30 * * * * /usr/local/bin/rotate_minecraft_backups.py > /dev/null
+1. Place this script somewhere on your server, for example: /usr/local/bin/rotate_backups.py
+2. chmod a+x /usr/local/bin/rotate_backups.py 
+3. Add a cron like this -->  30 * * * * /usr/local/bin/rotate_backups.py > /dev/null
 
 In step three, we added a cronjob for 30 minutes after each hour. This would be
 a good setting if for example your backups cron runs every hour on the hour.
@@ -49,7 +53,7 @@ It's best to do all your rotating shortly *before* your backups.
 
 How to configure
 ---------------------------------------------------
-You can edit the defaults in the script below, or create a config file in /etc/defaults/rotate-minecraft-backups or $HOME/.rotate-minecraft-backupsrc 
+You can edit the defaults in the script below, or create a config file in /etc/defaults/rotate-backups or $HOME/.rotate-backupsrc 
 
 The config file format follows the Python ConfigParser format (http://docs.python.org/library/configparser.html). Here is an example:
 
@@ -125,7 +129,7 @@ class Account:
       if (Account.already_read_config):
          return
       config = ConfigParser.ConfigParser()
-      config.read(['/etc/defaults/rotate-minecraft-backups', os.path.join(os.getenv("HOME"), ".rotate-minecraft-backupsrc")])
+      config.read(['/etc/defaults/rotate-backups', os.path.join(os.getenv("HOME"), ".rotate-backupsrc")])
       Account.backups_dir = config.get('Settings', 'backups_dir')
       Account.archives_dir = config.get('Settings', 'archives_dir')
       Account.weekly_backup_day = config.getint('Settings', 'weekly_backup_day')
