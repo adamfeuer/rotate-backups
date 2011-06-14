@@ -119,6 +119,7 @@ mc_update() {
 }
 
 mc_backup() {
+   # note that $BACKUPPATH and $WORLD cannot have spaces in their names
    if [ ! -d $BACKUPPATH ] ; then
      mkdir $BACKUPPATH
    fi
@@ -126,7 +127,7 @@ mc_backup() {
    as_user "cd $MCPATH && tar jcf $BACKUPPATH/$WORLD-`date "+%Y-%m-%d-%H%M"`.tar.bzip2 $WORLD"
    echo "Backed up $WORLD"
    echo "Backing up the minecraft server executable"
-   as_user "cd $MCPATH && cp minecraft_server.jar \"$BACKUPPATH/minecraft_server_`date "+%Y-%m-%d-%H%M"`.jar\""
+   as_user "cd $MCPATH && cp minecraft_server.jar $BACKUPPATH/minecraft_server_`date "+%Y-%m-%d-%H%M"`.jar"
    echo "Backup complete"
 }
 
