@@ -19,14 +19,14 @@ Here's what the script will do:
 This will effectively turn a user_backups dir like this:
 
 backups/
-  world.tar.bzip2
+  world.tar.bz2
 
 ...into this:
 
 user_backups_archive/
 world/
    hourly/
-      world-2008-01-01.tar.bzip2
+      world-2008-01-01.tar.bz2
 
 Those hourly tarballs will continue to pile up for the first 24 hours, after
 which a daily directory will appear.  After 7 days, another directory will
@@ -63,7 +63,7 @@ archives_dir = /home/adamf/minecraft/backups-archives
 hourly_backup_hour = 23
 weekly_backup_day = 6
 max_weekly_backups = 52
-backup_extensions = ".tar.bzip2",".jar"
+backup_extensions = ".tar.bz2",".jar"
 ```
 
 Requirements
