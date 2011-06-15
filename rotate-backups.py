@@ -88,7 +88,7 @@ License
 -------
 
 This script is based on the DirectAdmin backup script written by Sean Schertell
-Modified for Minecraft by Adam Feuer <adamf@pobox.com>
+Modified by Adam Feuer <adamf@pobox.com>
 http://adamfeuer.com
 
 License: MIT

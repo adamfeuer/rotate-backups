@@ -82,4 +82,9 @@ Adam Feuer
 adamf@pobox.com
 http://adamfeuer.com
 
+Credits
+-------
+
+This script is based on the DirectAdmin backup script written by Sean Schertell
+
 
