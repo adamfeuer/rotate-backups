@@ -199,11 +199,11 @@ class Account:
       for hourly in self.get_backups_in(HOURLY):
          if hourly.date < twelve_hours_ago:
             # This houly is more than 24 hours old. Move to daily or delete.
-            if hourly.date.hour() == Account.hourly_backup_hour:
-               print '%s equals %s' % (hourly.date.hour(), Account.hourly_backup_hour)
+            if hourly.date.hour == Account.hourly_backup_hour:
+               print '%s equals %s' % (hourly.date.hour, Account.hourly_backup_hour)
                hourly.move_to(DAILY, Account.archives_dir)
             else:
-               print '%s is not %s' % (hourly.date.hour(), Account.hourly_backup_hour)
+               print '%s is not %s' % (hourly.date.hour, Account.hourly_backup_hour)
                hourly.remove()
    
    def rotate_dailies(self):
@@ -211,11 +211,11 @@ class Account:
       for daily in self.get_backups_in(DAILY):
          if daily.date < seven_days_ago:
             # This daily is more than seven days old. Move to weekly or delete.
-            if daily.date.weekday() == Account.weekly_backup_day:
-               print '%s equals %s' % (daily.date.weekday(), Account.weekly_backup_day)
+            if daily.date.weekday == Account.weekly_backup_day:
+               print '%s equals %s' % (daily.date.weekday, Account.weekly_backup_day)
                daily.move_to(WEEKLY, Account.archives_dir)
             else:
-               print '%s is not %s' % (daily.date.weekday(), Account.weekly_backup_day)
+               print '%s is not %s' % (daily.date.weekday, Account.weekly_backup_day)
                daily.remove()
    
    def rotate_weeklies(self):
@@ -238,12 +238,18 @@ class Backup:
 
    def __init__(self, path_to_file):
       """Instantiation also rewrites the filename if not already done (prepends date.)"""
+      self.pattern = '(.*)(\-)([0-9]{4}\-[0-9]{2}\-[0-9]{2}\-[0-9]{4})' 
       self.path_to_file = path_to_file
       self.filename = self.format_filename()    
-      self.parts = self.filename.split('.', 1)
-      self.params = self.parts[0].split('-')
-      self.account = self.params[0]        
-      self.date = self.get_datetime_obj()
+      self.set_account_and_date(self.filename)
+  
+   def set_account_and_date(self, filename):
+      match_obj = re.match(self.pattern, filename)
+      if match_obj is None:
+        return filename
+      self.account = match_obj.group(1)
+      datestring = match_obj.group(3)
+      self.date = self.get_datetime_obj(datestring)
    
    def move_to(self, directory, archives_dir):
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
@@ -265,7 +271,7 @@ class Backup:
       path_parts = os.path.split(self.path_to_file)
       filename = path_parts[-1]
       parent_dir = os.sep + os.path.join(*path_parts[:-1])
-      if not re.match('(.*)([0-9]{4}\-[0-9]{2}\-[0-9]{2}\-[0-9]{4})', filename.split('.')[0]):
+      if not re.match(self.pattern, filename.split('.')[0]):
           # No date, rename the file
           self.mtime = time.localtime( os.path.getmtime(self.path_to_file) )
           self.mtime_str = time.strftime('%Y-%m-%d-%H%M', self.mtime)
@@ -278,12 +284,13 @@ class Backup:
           self.path_to_file = new_filepath
       return filename
        
-   def get_datetime_obj(self):
-      year = int(self.params[1])
-      month = int(self.params[2])
-      day = int(self.params[3])
-      hour = int(self.params[4][:2]) 
-      minute = int(self.params[4][2:]) 
+   def get_datetime_obj(self, datestring):
+      fields = datestring.split('-')
+      year = int(fields[0])
+      month = int(fields[1])
+      day = int(fields[2])
+      hour = int(fields[3][:2]) 
+      minute = int(fields[3][2:]) 
       return datetime(year, month, day, hour, minute)
    
    def __cmp__(x, y):
