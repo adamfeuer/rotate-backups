@@ -211,11 +211,11 @@ class Account:
       for daily in self.get_backups_in(DAILY):
          if daily.date < seven_days_ago:
             # This daily is more than seven days old. Move to weekly or delete.
-            if daily.date.weekday == Account.weekly_backup_day:
-               print '%s equals %s' % (daily.date.weekday, Account.weekly_backup_day)
+            if daily.date.weekday() == Account.weekly_backup_day:
+               print '%s equals %s' % (daily.date.weekday(), Account.weekly_backup_day)
                daily.move_to(WEEKLY, Account.archives_dir)
             else:
-               print '%s is not %s' % (daily.date.weekday, Account.weekly_backup_day)
+               print '%s is not %s' % (daily.date.weekday(), Account.weekly_backup_day)
                daily.remove()
    
    def rotate_weeklies(self):
