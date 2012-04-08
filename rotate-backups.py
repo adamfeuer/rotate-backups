@@ -9,15 +9,15 @@ compressed backups every hour or every day.  These backups accumulate, taking
 up disk space.
 
 By running this rotator script once per hour shortly *before* your hourly backup
-cron runs, you can save 24 houly backups, 7 daily backups and an arbitrary
+cron runs, you can save 24 hourly backups, 7 daily backups and an arbitrary
 number of weekly backups (the default is 52).
 
 Here's what the script will do:
 
 1. Rename new arrival tarballs to include tarball's mtime date, then move into <username>/hourly/ dir.
-2. For any hourly backups which are more than 24 hours old, either move them into daily, or delete
-3. For any daily backups which are more than 7 days old, either move them into weekly, or delete
-4. Delete excess backups from weekly dir (in excess of user setting: max_weekly_backups)
+2. For any hourly backups which are more than 24 hours old, either move them into daily, or delete.
+3. For any daily backups which are more than 7 days old, either move them into weekly, or delete.
+4. Delete excess backups from weekly dir (in excess of user setting: max_weekly_backups).
 
 This will effectively turn a user_backups dir like this:
 
@@ -87,7 +87,7 @@ http://adamfeuer.com
 License
 -------
 
-This script is based on the DirectAdmin backup script written by Sean Schertell
+This script is based on the DirectAdmin backup script written by Sean Schertell.
 Modified by Adam Feuer <adamf@pobox.com>
 http://adamfeuer.com
 
@@ -103,9 +103,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 """
 
-#################################################
-# Default Settings
-# Note these can also be changed in /etc/defaults/rotate-minecraft-backups or $HOME/.rotate-minecraft-backupsrc
+#############################################################################################
+# Default Settings                                                                          #
+# Note these can also be changed in /etc/defaults/rotate-backups or $HOME/.rotate-backupsrc #
+#############################################################################################
 
 default_backups_dir        = '/var/backups/minecraft/backups'
 default_archives_dir       = '/var/backups/minecraft/backups-archives/'
@@ -114,7 +115,7 @@ default_weekly_backup_day  = 6  # 0-6, Monday-Sunday
 default_max_weekly_backups = 52
 default_backup_extensions  = ['tar.gz', '.tar.bz2', '.jar'] # list of file extensions that will be backed up
 
-#################################################
+#############################################################################################
 
 import os, sys, time, re, csv, ConfigParser, StringIO
 from datetime import datetime, timedelta
@@ -162,17 +163,17 @@ class Account:
  
    @classmethod
    def check_dirs(self):
-      # Make sure backups_dir actually exists
+      # Make sure backups_dir actually exists.
       if not os.path.isdir(Account.backups_dir):
-         print "Unable to find backups directory: %s" % Account.backups_dir
+         print "Unable to find backups directory: %s." % Account.backups_dir
          sys.exit(1)
 
-      # Make sure archives_dir actually exists
+      # Make sure archives_dir actually exists.
       if not os.path.isdir(Account.archives_dir):
          try:
             os.mkdir(Account.archives_dir)
          except:
-            print "Unable to create archives directory: %s" % Account.archives_dir
+            print "Unable to create archives directory: %s." % Account.archives_dir
             sys.exit(1)
  
    @classmethod
@@ -185,37 +186,37 @@ class Account:
 
    @classmethod
    def collect(object):
-      """Return a collection of account objects for all accounts in backup dir"""
+      """Return a collection of account objects for all accounts in backup directory."""
       Account.read_config()
       accounts = []
-      # Append all account names from archives_dir
+      # Append all account names from archives_dir.
       for account_name in os.listdir(Account.archives_dir):
          accounts.append(account_name)
-      accounts = sorted(list(set(accounts))) # Uniquify
+      accounts = sorted(list(set(accounts))) # Uniquify.
       return map(Account, accounts)
 
    def rotate_hourlies(self):
       twelve_hours_ago = datetime.today() - timedelta(hours = 24)
       for hourly in self.get_backups_in(HOURLY):
          if hourly.date < twelve_hours_ago:
-            # This houly is more than 24 hours old. Move to daily or delete.
+            # This hourly is more than 24 hours old: move to 'daily' directory or delete.
             if hourly.date.hour == Account.hourly_backup_hour:
-               print '%s equals %s' % (hourly.date.hour, Account.hourly_backup_hour)
+               print '%s equals %s.' % (hourly.date.hour, Account.hourly_backup_hour)
                hourly.move_to(DAILY, Account.archives_dir)
             else:
-               print '%s is not %s' % (hourly.date.hour, Account.hourly_backup_hour)
+               print '%s is not %s.' % (hourly.date.hour, Account.hourly_backup_hour)
                hourly.remove()
    
    def rotate_dailies(self):
       seven_days_ago = datetime.today() - timedelta(days = 7)
       for daily in self.get_backups_in(DAILY):
          if daily.date < seven_days_ago:
-            # This daily is more than seven days old. Move to weekly or delete.
+            # This daily is more than seven days old: move to 'weekly' directory or delete.
             if daily.date.weekday() == Account.weekly_backup_day:
-               print '%s equals %s' % (daily.date.weekday(), Account.weekly_backup_day)
+               print '%s equals %s.' % (daily.date.weekday(), Account.weekly_backup_day)
                daily.move_to(WEEKLY, Account.archives_dir)
             else:
-               print '%s is not %s' % (daily.date.weekday(), Account.weekly_backup_day)
+               print '%s is not %s.' % (daily.date.weekday(), Account.weekly_backup_day)
                daily.remove()
    
    def rotate_weeklies(self):
@@ -237,7 +238,7 @@ class Account:
 class Backup:
 
    def __init__(self, path_to_file):
-      """Instantiation also rewrites the filename if not already done (prepends date.)"""
+      """Instantiation also rewrites the filename if not already done, prepending the date."""
       self.pattern = '(.*)(\-)([0-9]{4}\-[0-9]{2}\-[0-9]{2}\-[0-9]{4})' 
       self.path_to_file = path_to_file
       self.filename = self.format_filename()    
@@ -254,10 +255,10 @@ class Backup:
    def move_to(self, directory, archives_dir):
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
       try:
-          print 'moving %s to %s' % (self.path_to_file, new_filepath)
+          print 'Moving %s to %s.' % (self.path_to_file, new_filepath)
           os.renames(self.path_to_file, new_filepath)
       except:
-          print 'Unable move latest backups into %s/ directory.' % directory
+          print 'Unable to move latest backups into %s/ directory.' % directory
           sys.exit(1)
    
    def remove(self):
@@ -266,20 +267,20 @@ class Backup:
    
    
    def format_filename(self):
-      """If this filename hasn't yet been prepended with the date, do that now"""
+      """If this filename hasn't yet been prepended with the date, do that now."""
       # Does the filename include a date?
       path_parts = os.path.split(self.path_to_file)
       filename = path_parts[-1]
       parent_dir = os.sep + os.path.join(*path_parts[:-1])
       if not re.match(self.pattern, filename.split('.')[0]):
-          # No date, rename the file
+          # No date, rename the file.
           self.mtime = time.localtime( os.path.getmtime(self.path_to_file) )
           self.mtime_str = time.strftime('%Y-%m-%d-%H%M', self.mtime)
           account = filename.split('.')[0]
           extension = filename.split('.', 1)[1]
           filename = ('%s-%s.' + extension) % (account, self.mtime_str)
           new_filepath = os.path.join(parent_dir, filename)
-          print 'Renaming file to %s' % new_filepath
+          print 'Renaming file to %s.' % new_filepath
           os.rename(self.path_to_file, new_filepath)
           self.path_to_file = new_filepath
       return filename
@@ -294,7 +295,7 @@ class Backup:
       return datetime(year, month, day, hour, minute)
    
    def __cmp__(x, y):
-      """For sorting by date"""
+      """For sorting by date."""
       return cmp( x.date, y.date)
    
    
@@ -308,7 +309,7 @@ def is_backup(filename):
 ###################################################
 
                
-# For each account, rotate out new_arrivals, old dailies, old weeklies
+# For each account, rotate out new_arrivals, old dailies, old weeklies.
 
 Account.rotate_new_arrivals()
 
@@ -318,4 +319,3 @@ for account in Account.collect():
     account.rotate_weeklies()
     
 sys.exit(0)
-
