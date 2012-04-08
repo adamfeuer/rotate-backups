@@ -196,9 +196,9 @@ class Account:
       return map(Account, accounts)
 
    def rotate_hourlies(self):
-      twelve_hours_ago = datetime.today() - timedelta(hours = 24)
+      twenty_four_hours_ago = datetime.today() - timedelta(hours = 24)
       for hourly in self.get_backups_in(HOURLY):
-         if hourly.date < twelve_hours_ago:
+         if hourly.date < twenty_four_hours_ago:
             # This hourly is more than 24 hours old: move to 'daily' directory or delete.
             if hourly.date.hour == Account.hourly_backup_hour:
                print '%s equals %s.' % (hourly.date.hour, Account.hourly_backup_hour)
