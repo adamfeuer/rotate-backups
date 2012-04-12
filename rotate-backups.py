@@ -57,6 +57,8 @@ How to configure
 
 You can edit the defaults in the script below, or create a config file in /etc/defaults/rotate-backups or $HOME/.rotate-backupsrc 
 
+The allowed log levels are INFO, WARNING, ERROR, and DEBUG.
+
 The config file format follows the Python ConfigParser format (http://docs.python.org/library/configparser.html). Here is an example:
 
 ```
@@ -67,6 +69,7 @@ hourly_backup_hour = 23
 weekly_backup_day = 6
 max_weekly_backups = 52
 backup_extensions = ".tar.bz2",".jar"
+log_level = ERROR
 ```
 
 Requirements
@@ -114,15 +117,25 @@ default_hourly_backup_hour = 23 # 0-23
 default_weekly_backup_day  = 6  # 0-6, Monday-Sunday
 default_max_weekly_backups = 52
 default_backup_extensions  = ['tar.gz', '.tar.bz2', '.jar'] # list of file extensions that will be backed up
+default_log_level = 'ERROR'
 
 #############################################################################################
 
-import os, sys, time, re, csv, ConfigParser, StringIO
+import os, sys, time, re, csv, traceback, logging, ConfigParser, StringIO 
 from datetime import datetime, timedelta
+
+allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG } 
 
 HOURLY = 'hourly'
 DAILY  = 'daily'
 WEEKLY = 'weekly'
+
+LOGGER = logging.getLogger('rotate-backups')
+consoleHandler = logging.StreamHandler()
+consoleHandler.setLevel(allowed_log_levels[default_log_level])
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+consoleHandler.setFormatter(formatter)
+LOGGER.addHandler(consoleHandler)
 
 class Account:
    already_read_config = False
@@ -146,6 +159,8 @@ class Account:
          return
       config = ConfigParser.ConfigParser()
       config.read(['/etc/defaults/rotate-backups', os.path.join(os.getenv("HOME"), ".rotate-backupsrc")])
+      log_level = config.get('Settings', 'log_level')
+      LOGGER.setLevel(allowed_log_levels.get(log_level, default_log_level))
       Account.backups_dir = config.get('Settings', 'backups_dir')
       Account.archives_dir = config.get('Settings', 'archives_dir')
       Account.weekly_backup_day = config.getint('Settings', 'weekly_backup_day')
@@ -165,7 +180,7 @@ class Account:
    def check_dirs(self):
       # Make sure backups_dir actually exists.
       if not os.path.isdir(Account.backups_dir):
-         print "Unable to find backups directory: %s." % Account.backups_dir
+         LOGGER.error("Unable to find backups directory: %s." % Account.backups_dir)
          sys.exit(1)
 
       # Make sure archives_dir actually exists.
@@ -173,7 +188,7 @@ class Account:
          try:
             os.mkdir(Account.archives_dir)
          except:
-            print "Unable to create archives directory: %s." % Account.archives_dir
+            LOGGER.error("Unable to create archives directory: %s." % Account.archives_dir)
             sys.exit(1)
  
    @classmethod
@@ -201,10 +216,10 @@ class Account:
          if hourly.date < twenty_four_hours_ago:
             # This hourly is more than 24 hours old: move to 'daily' directory or delete.
             if hourly.date.hour == Account.hourly_backup_hour:
-               print '%s equals %s.' % (hourly.date.hour, Account.hourly_backup_hour)
+               LOGGER.debug('%s equals %s.' % (hourly.date.hour, Account.hourly_backup_hour))
                hourly.move_to(DAILY, Account.archives_dir)
             else:
-               print '%s is not %s.' % (hourly.date.hour, Account.hourly_backup_hour)
+               LOGGER.debug('%s is not %s.' % (hourly.date.hour, Account.hourly_backup_hour))
                hourly.remove()
    
    def rotate_dailies(self):
@@ -213,10 +228,10 @@ class Account:
          if daily.date < seven_days_ago:
             # This daily is more than seven days old: move to 'weekly' directory or delete.
             if daily.date.weekday() == Account.weekly_backup_day:
-               print '%s equals %s.' % (daily.date.weekday(), Account.weekly_backup_day)
+               LOGGER.debug('%s equals %s.' % (daily.date.weekday(), Account.weekly_backup_day))
                daily.move_to(WEEKLY, Account.archives_dir)
             else:
-               print '%s is not %s.' % (daily.date.weekday(), Account.weekly_backup_day)
+               LOGGER.debug('%s is not %s.' % (daily.date.weekday(), Account.weekly_backup_day))
                daily.remove()
    
    def rotate_weeklies(self):
@@ -255,14 +270,15 @@ class Backup:
    def move_to(self, directory, archives_dir):
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
       try:
-          print 'Moving %s to %s.' % (self.path_to_file, new_filepath)
+          LOGGER.info('Moving %s to %s.' % (self.path_to_file, new_filepath))
           os.renames(self.path_to_file, new_filepath)
       except:
-          print 'Unable to move latest backups into %s/ directory.' % directory
+          LOGGER.error('Unable to move latest backups into %s/ directory.' % directory)
+          LOGGER.error("Stacktrace: " + traceback.format_exc()) 
           sys.exit(1)
    
    def remove(self):
-     print 'Removing %s' % self.path_to_file
+     LOGGER.info('Removing %s' % self.path_to_file)
      os.remove(self.path_to_file)
    
    
@@ -280,7 +296,7 @@ class Backup:
           extension = filename.split('.', 1)[1]
           filename = ('%s-%s.' + extension) % (account, self.mtime_str)
           new_filepath = os.path.join(parent_dir, filename)
-          print 'Renaming file to %s.' % new_filepath
+          LOGGER.info('Renaming file to %s.' % new_filepath)
           os.rename(self.path_to_file, new_filepath)
           self.path_to_file = new_filepath
       return filename
