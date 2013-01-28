@@ -121,7 +121,7 @@ default_log_level = 'ERROR'
 
 #############################################################################################
 
-import os, sys, time, re, csv, traceback, logging, ConfigParser, StringIO 
+import os, sys, time, re, csv, traceback, logging, ConfigParser, StringIO, shutil
 from datetime import datetime, timedelta
 
 allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG } 
@@ -271,7 +271,9 @@ class Backup:
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
       try:
           LOGGER.info('Moving %s to %s.' % (self.path_to_file, new_filepath))
-          os.renames(self.path_to_file, new_filepath)
+          if not os.path.isdir(new_filepath):
+            os.makedirs(new_filepath)
+          shutil.move(self.path_to_file, new_filepath)
       except:
           LOGGER.error('Unable to move latest backups into %s/ directory.' % directory)
           LOGGER.error("Stacktrace: " + traceback.format_exc()) 
@@ -297,7 +299,7 @@ class Backup:
           filename = ('%s-%s.' + extension) % (account, self.mtime_str)
           new_filepath = os.path.join(parent_dir, filename)
           LOGGER.info('Renaming file to %s.' % new_filepath)
-          os.rename(self.path_to_file, new_filepath)
+          shutil.move(self.path_to_file, new_filepath)
           self.path_to_file = new_filepath
       return filename
        
