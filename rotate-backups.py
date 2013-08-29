@@ -268,11 +268,12 @@ class Backup:
       self.date = self.get_datetime_obj(datestring)
    
    def move_to(self, directory, archives_dir):
+      destination_dir = os.path.join(archives_dir, self.account, directory);
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
       try:
           LOGGER.info('Moving %s to %s.' % (self.path_to_file, new_filepath))
-          if not os.path.isdir(new_filepath):
-            os.makedirs(new_filepath)
+          if not os.path.isdir(destination_dir):
+            os.makedirs(destination_dir)
           shutil.move(self.path_to_file, new_filepath)
       except:
           LOGGER.error('Unable to move latest backups into %s/ directory.' % directory)
