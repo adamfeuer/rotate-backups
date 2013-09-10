@@ -52,7 +52,7 @@ It's best to do all your rotating shortly *before* your backups.
 How to configure
 ----------------
 
-You can edit the defaults in the script below, or create a config file in /etc/defaults/rotate-backups or $HOME/.rotate-backupsrc 
+You can edit the defaults in the script below, or create a config file in /etc/default/rotate-backups or $HOME/.rotate-backupsrc 
 
 The config file format follows the Python ConfigParser format (http://docs.python.org/library/configparser.html). Here is an example:
 
