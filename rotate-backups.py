@@ -55,7 +55,7 @@ It's best to do all your rotating shortly *before* your backups.
 How to configure
 ----------------
 
-You can edit the defaults in the script below, or create a config file in /etc/defaults/rotate-backups or $HOME/.rotate-backupsrc 
+You can edit the defaults in the script below, or create a config file in /etc/default/rotate-backups or $HOME/.rotate-backupsrc 
 
 The allowed log levels are INFO, WARNING, ERROR, and DEBUG.
 
@@ -108,7 +108,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #############################################################################################
 # Default Settings                                                                          #
-# Note these can also be changed in /etc/defaults/rotate-backups or $HOME/.rotate-backupsrc #
+# Note these can also be changed in /etc/default/rotate-backups or $HOME/.rotate-backupsrc #
 #############################################################################################
 
 default_backups_dir        = '/var/backups/minecraft/backups'
@@ -158,7 +158,7 @@ class Account:
       if (Account.already_read_config):
          return
       config = ConfigParser.ConfigParser()
-      config.read(['/etc/defaults/rotate-backups', os.path.join(os.getenv("HOME"), ".rotate-backupsrc")])
+      config.read(['/etc/default/rotate-backups', os.path.join(os.getenv("HOME"), ".rotate-backupsrc")])
       log_level = config.get('Settings', 'log_level')
       LOGGER.setLevel(allowed_log_levels.get(log_level, default_log_level))
       Account.backups_dir = config.get('Settings', 'backups_dir')
