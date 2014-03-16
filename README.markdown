@@ -64,6 +64,7 @@ hourly_backup_hour = 23
 weekly_backup_day = 6
 max_weekly_backups = 52
 backup_extensions = ".tar.bz2",".jar"
+log_level = ERROR
 ```
 
 Requirements
