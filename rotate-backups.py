@@ -265,7 +265,8 @@ class Backup:
         return filename
       self.account = match_obj.group(1)
       datestring = match_obj.group(3)
-      self.date = self.get_datetime_obj(datestring)
+      time_struct = time.strptime(datestring, "%Y-%m-%d-%H%M")
+      self.date = datetime(*time_struct[:5])
 
    def move_to(self, directory, archives_dir):
       destination_dir = os.path.join(archives_dir, self.account, directory);
@@ -303,15 +304,6 @@ class Backup:
           shutil.move(self.path_to_file, new_filepath)
           self.path_to_file = new_filepath
       return filename
-
-   def get_datetime_obj(self, datestring):
-      fields = datestring.split('-')
-      year = int(fields[0])
-      month = int(fields[1])
-      day = int(fields[2])
-      hour = int(fields[3][:2])
-      minute = int(fields[3][2:])
-      return datetime(year, month, day, hour, minute)
 
    def __cmp__(x, y):
       """For sorting by date."""
