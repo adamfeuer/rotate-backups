@@ -44,7 +44,7 @@ How to install
 --------------
 
 1. Place this script somewhere on your server, for example: /usr/local/bin/rotate_backups.py
-2. chmod a+x /usr/local/bin/rotate_backups.py 
+2. chmod a+x /usr/local/bin/rotate_backups.py
 3. Add a cron like this -->  30 * * * * /usr/local/bin/rotate_backups.py > /dev/null
 
 In step three, we added a cronjob for 30 minutes after each hour. This would be
@@ -55,7 +55,7 @@ It's best to do all your rotating shortly *before* your backups.
 How to configure
 ----------------
 
-You can edit the defaults in the script below, or create a config file in /etc/default/rotate-backups or $HOME/.rotate-backupsrc 
+You can edit the defaults in the script below, or create a config file in /etc/default/rotate-backups or $HOME/.rotate-backupsrc
 
 The allowed log levels are INFO, WARNING, ERROR, and DEBUG.
 
@@ -75,7 +75,7 @@ log_level = ERROR
 Requirements
 ------------
 
-Python 2.7 
+Python 2.7
 
 (I have not tested this with Python 3)
 
@@ -124,7 +124,7 @@ default_log_level = 'ERROR'
 import os, sys, time, re, csv, traceback, logging, ConfigParser, StringIO, shutil
 from datetime import datetime, timedelta
 
-allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG } 
+allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG }
 
 HOURLY = 'hourly'
 DAILY  = 'daily'
@@ -170,12 +170,12 @@ class Account:
       Account.backup_extensions = Account.parse_extensions(backup_extensions_string)
       Account.check_dirs()
       Account.already_read_config = True
-   
+
    @classmethod
    def parse_extensions(self, extensions_string):
       parser = csv.reader(StringIO.StringIO(extensions_string))
       return list(parser)[0]
- 
+
    @classmethod
    def check_dirs(self):
       # Make sure backups_dir actually exists.
@@ -190,7 +190,7 @@ class Account:
          except:
             LOGGER.error("Unable to create archives directory: %s." % Account.archives_dir)
             sys.exit(1)
- 
+
    @classmethod
    def rotate_new_arrivals(self):
       Account.read_config()
@@ -221,7 +221,7 @@ class Account:
             else:
                LOGGER.debug('%s is not %s.' % (hourly.date.hour, Account.hourly_backup_hour))
                hourly.remove()
-   
+
    def rotate_dailies(self):
       seven_days_ago = datetime.today() - timedelta(days = 7)
       for daily in self.get_backups_in(DAILY):
@@ -233,13 +233,13 @@ class Account:
             else:
                LOGGER.debug('%s is not %s.' % (daily.date.weekday(), Account.weekly_backup_day))
                daily.remove()
-   
+
    def rotate_weeklies(self):
       expiration_date = datetime.today() - timedelta(days = 7 * Account.max_weekly_backups)
       for weekly in self.get_backups_in(WEEKLY):
          if weekly.date < expiration_date:
             weekly.remove()
-   
+
    def get_backups_in(self, directory):
       backups = []
       path_to_dir = getattr(self, 'path_to_%s' % directory)
@@ -249,16 +249,16 @@ class Account:
             backups.append(Backup(path_to_file))
       backups.sort()
       return backups
-    
+
 class Backup:
 
    def __init__(self, path_to_file):
       """Instantiation also rewrites the filename if not already done, prepending the date."""
-      self.pattern = '(.*)(\-)([0-9]{4}\-[0-9]{2}\-[0-9]{2}\-[0-9]{4})' 
+      self.pattern = '(.*)(\-)([0-9]{4}\-[0-9]{2}\-[0-9]{2}\-[0-9]{4})'
       self.path_to_file = path_to_file
-      self.filename = self.format_filename()    
+      self.filename = self.format_filename()
       self.set_account_and_date(self.filename)
-  
+
    def set_account_and_date(self, filename):
       match_obj = re.match(self.pattern, filename)
       if match_obj is None:
@@ -266,7 +266,7 @@ class Backup:
       self.account = match_obj.group(1)
       datestring = match_obj.group(3)
       self.date = self.get_datetime_obj(datestring)
-   
+
    def move_to(self, directory, archives_dir):
       destination_dir = os.path.join(archives_dir, self.account, directory);
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
@@ -277,14 +277,14 @@ class Backup:
           shutil.move(self.path_to_file, new_filepath)
       except:
           LOGGER.error('Unable to move latest backups into %s/ directory.' % directory)
-          LOGGER.error("Stacktrace: " + traceback.format_exc()) 
+          LOGGER.error("Stacktrace: " + traceback.format_exc())
           sys.exit(1)
-   
+
    def remove(self):
      LOGGER.info('Removing %s' % self.path_to_file)
      os.remove(self.path_to_file)
-   
-   
+
+
    def format_filename(self):
       """If this filename hasn't yet been prepended with the date, do that now."""
       # Does the filename include a date?
@@ -303,31 +303,31 @@ class Backup:
           shutil.move(self.path_to_file, new_filepath)
           self.path_to_file = new_filepath
       return filename
-       
+
    def get_datetime_obj(self, datestring):
       fields = datestring.split('-')
       year = int(fields[0])
       month = int(fields[1])
       day = int(fields[2])
-      hour = int(fields[3][:2]) 
-      minute = int(fields[3][2:]) 
+      hour = int(fields[3][:2])
+      minute = int(fields[3][2:])
       return datetime(year, month, day, hour, minute)
-   
+
    def __cmp__(x, y):
       """For sorting by date."""
       return cmp( x.date, y.date)
-   
-   
+
+
 def is_backup(filename):
    for extension in Account.backup_extensions:
       if filename.endswith(extension):
           return True
    return False
-    
-        
+
+
 ###################################################
 
-               
+
 # For each account, rotate out new_arrivals, old dailies, old weeklies.
 
 Account.rotate_new_arrivals()
@@ -336,5 +336,5 @@ for account in Account.collect():
     account.rotate_hourlies()
     account.rotate_dailies()
     account.rotate_weeklies()
-    
+
 sys.exit(0)
