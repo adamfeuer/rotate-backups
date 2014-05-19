@@ -167,7 +167,7 @@ class SimpleConfig(object):
       return list(parser)[0]
 
 
-class Account:
+class Account(object):
    def __init__(self, account_name):
       self.name = account_name
       self.path_to_hourly = '%s/%s/hourly/' % (config.archives_dir, self.name)
@@ -215,7 +215,7 @@ class Account:
       return backups
 
 
-class Backup:
+class Backup(object):
    def __init__(self, path_to_file):
       """Instantiation also rewrites the filename if not already done, prepending the date."""
       self.pattern = '(.*)(\-)([0-9]{4}\-[0-9]{2}\-[0-9]{2}\-[0-9]{4})'
