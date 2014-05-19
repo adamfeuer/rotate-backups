@@ -111,13 +111,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 # Note these can also be changed in /etc/default/rotate-backups or $HOME/.rotate-backupsrc  #
 #############################################################################################
 
-default_backups_dir        = '/var/backups/minecraft/backups'
-default_archives_dir       = '/var/backups/minecraft/backups-archives/'
-default_hourly_backup_hour = 23 # 0-23
-default_weekly_backup_day  = 6  # 0-6, Monday-Sunday
-default_max_weekly_backups = 52
-default_backup_extensions  = ['tar.gz', '.tar.bz2', '.jar'] # list of file extensions that will be backed up
-default_log_level = 'ERROR'
+DEFAULTS = {
+            'backups_dir':        '/var/backups/minecraft/backups',
+            'archives_dir':       '/var/backups/minecraft/backups-archives/',
+            'hourly_backup_hour': 23, # 0-23
+            'weekly_backup_day':  6,  # 0-6, Monday-Sunday
+            'max_weekly_backups': 52,
+            'backup_extensions':  ['tar.gz', '.tar.bz2', '.jar'], # list of file extensions that will be backed up
+            'log_level':          'ERROR',
+           }
 
 #############################################################################################
 
@@ -132,34 +134,33 @@ WEEKLY = 'weekly'
 
 LOGGER = logging.getLogger('rotate-backups')
 consoleHandler = logging.StreamHandler()
-consoleHandler.setLevel(allowed_log_levels[default_log_level])
+consoleHandler.setLevel(allowed_log_levels[DEFAULTS["log_level"]])
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 consoleHandler.setFormatter(formatter)
 LOGGER.addHandler(consoleHandler)
 
+
 class SimpleConfig(object):
    def __init__(self):
-      backups_dir = default_backups_dir
-      archives_dir = default_archives_dir
-      hourly_backup_hour = default_hourly_backup_hour
-      weekly_backup_day = default_weekly_backup_day
-      max_weekly_backups = default_max_weekly_backups
-      backup_extensions = default_backup_extensions
+      self.config = ConfigParser.ConfigParser()
+      global_configfile = '/etc/default/rotate-backups'
+      local_configfile  = os.path.join(os.getenv("HOME"), ".rotate-backupsrc")
+      self.config.read([global_configfile, local_configfile])
+      log_level = self.config.get('Settings', 'log_level')
+      LOGGER.setLevel(allowed_log_levels.get(log_level, DEFAULTS["log_level"]))
 
-      self.read_config()
+   def __getattr__(self, setting):
+      r = None
 
-   def read_config(self):
-      config = ConfigParser.ConfigParser()
-      config.read(['/etc/default/rotate-backups', os.path.join(os.getenv("HOME"), ".rotate-backupsrc")])
-      log_level = config.get('Settings', 'log_level')
-      LOGGER.setLevel(allowed_log_levels.get(log_level, default_log_level))
-      self.backups_dir = config.get('Settings', 'backups_dir')
-      self.archives_dir = config.get('Settings', 'archives_dir')
-      self.hourly_backup_hour = config.getint('Settings', 'hourly_backup_hour')
-      self.weekly_backup_day = config.getint('Settings', 'weekly_backup_day')
-      self.max_weekly_backups = config.getint('Settings', 'max_weekly_backups')
-      backup_extensions_string = config.get('Settings', 'backup_extensions')
-      self.backup_extensions = self.parse_extensions(backup_extensions_string)
+      if setting in ('hourly_backup_hour', 'weekly_backup_day', 'max_weekly_backups'):
+         r = self.config.getint('Settings', setting)
+      else:
+         r = self.config.get('Settings', setting)
+
+      if setting == 'backup_extensions':
+         r = self.parse_extensions(r)
+
+      return r or DEFAULTS.get(setting)
 
    def parse_extensions(self, extensions_string):
       parser = csv.reader(StringIO.StringIO(extensions_string))
