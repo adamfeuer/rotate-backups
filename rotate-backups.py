@@ -169,10 +169,7 @@ class SimpleConfig(object):
 
 class Account(object):
    def __init__(self, account_name):
-      self.name = account_name
-      self.path_to_hourly = '%s/%s/hourly/' % (config.archives_dir, self.name)
-      self.path_to_daily = '%s/%s/daily/' % (config.archives_dir, self.name)
-      self.path_to_weekly = '%s/%s/weekly/' % (config.archives_dir, self.name)
+      self.base_path = '%s/%s/' % (config.archives_dir, account_name)
 
    def rotate_hourlies(self):
       twenty_four_hours_ago = datetime.today() - timedelta(hours = 24)
@@ -206,7 +203,7 @@ class Account(object):
 
    def get_backups_in(self, directory):
       backups = []
-      path_to_dir = getattr(self, 'path_to_%s' % directory)
+      path_to_dir = '%s%s/' % (self.base_path, directory)
       if os.path.isdir(path_to_dir):
          for filename in os.listdir(path_to_dir):
             path_to_file = os.path.join(path_to_dir, filename)
