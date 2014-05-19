@@ -174,13 +174,6 @@ class Account:
       self.path_to_daily = '%s/%s/daily/' % (config.archives_dir, self.name)
       self.path_to_weekly = '%s/%s/weekly/' % (config.archives_dir, self.name)
 
-   @classmethod
-   def rotate_new_arrivals(self):
-      for filename in os.listdir(config.backups_dir):
-         if is_backup(filename):
-            new_arrival = Backup(os.path.join(config.backups_dir, filename))
-            new_arrival.move_to(HOURLY, config.archives_dir)
-
    def rotate_hourlies(self):
       twenty_four_hours_ago = datetime.today() - timedelta(hours = 24)
       for hourly in self.get_backups_in(HOURLY):
@@ -256,7 +249,6 @@ class Backup:
      LOGGER.info('Removing %s' % self.path_to_file)
      os.remove(self.path_to_file)
 
-
    def format_filename(self):
       """If this filename hasn't yet been prepended with the date, do that now."""
       # Does the filename include a date?
@@ -310,6 +302,12 @@ def check_dirs():
          LOGGER.error("Unable to create archives directory: %s." % config.archives_dir)
          sys.exit(1)
 
+def rotate_new_arrivals():
+   for filename in os.listdir(config.backups_dir):
+      if is_backup(filename):
+         new_arrival = Backup(os.path.join(config.backups_dir, filename))
+         new_arrival.move_to(HOURLY, config.archives_dir)
+
 ###################################################
 
 config = SimpleConfig()
@@ -317,7 +315,7 @@ check_dirs()
 
 # For each account, rotate out new_arrivals, old dailies, old weeklies.
 
-Account.rotate_new_arrivals()
+rotate_new_arrivals()
 
 for account in collect():
     account.rotate_hourlies()
