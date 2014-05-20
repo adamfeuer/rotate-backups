@@ -58,12 +58,12 @@ The config file format follows the Python ConfigParser format (http://docs.pytho
 
 ```
 [Settings]
-backups_dir = /home/adamf/minecraft/backups
-archives_dir = /home/adamf/minecraft/backups-archives
+backups_dir = /var/backups/latest/
+archives_dir = /var/backups/archives/
 hourly_backup_hour = 23
 weekly_backup_day = 6
 max_weekly_backups = 52
-backup_extensions = ".tar.bz2",".jar"
+backup_extensions = "tar.gz",".tar.bz2",".jar"
 log_level = ERROR
 ```
 
