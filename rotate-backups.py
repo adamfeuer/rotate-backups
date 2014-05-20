@@ -128,10 +128,6 @@ from datetime import datetime, timedelta
 
 allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG }
 
-HOURLY = 'hourly'
-DAILY  = 'daily'
-WEEKLY = 'weekly'
-
 LOGGER = logging.getLogger('rotate-backups')
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(allowed_log_levels[DEFAULTS["log_level"]])
@@ -171,35 +167,15 @@ class Account(object):
    def __init__(self, account_name):
       self.base_path = '%s/%s/' % (config.archives_dir, account_name)
 
-   def rotate_hourlies(self):
-      twenty_four_hours_ago = datetime.today() - timedelta(hours = 24)
-      for hourly in self.get_backups_in(HOURLY):
-         if hourly.date < twenty_four_hours_ago:
-            # This hourly is more than 24 hours old: move to 'daily' directory or delete.
-            if hourly.date.hour == config.hourly_backup_hour:
-               LOGGER.debug('%s equals %s.' % (hourly.date.hour, config.hourly_backup_hour))
-               hourly.move_to(DAILY, config.archives_dir)
+   def rotate(self, period_name, next_period_name, max_age):
+      earliest_creation_date = datetime.now() - max_age
+      for backup in self.get_backups_in(period_name):
+         if backup.date < earliest_creation_date:
+            # This backup is too old, move to other backup directory or delete.
+            if next_period_name and backup.is_rotation_time(period_name):
+               backup.move_to(next_period_name, config.archives_dir)
             else:
-               LOGGER.debug('%s is not %s.' % (hourly.date.hour, config.hourly_backup_hour))
-               hourly.remove()
-
-   def rotate_dailies(self):
-      seven_days_ago = datetime.today() - timedelta(days = 7)
-      for daily in self.get_backups_in(DAILY):
-         if daily.date < seven_days_ago:
-            # This daily is more than seven days old: move to 'weekly' directory or delete.
-            if daily.date.weekday() == config.weekly_backup_day:
-               LOGGER.debug('%s equals %s.' % (daily.date.weekday(), config.weekly_backup_day))
-               daily.move_to(WEEKLY, config.archives_dir)
-            else:
-               LOGGER.debug('%s is not %s.' % (daily.date.weekday(), config.weekly_backup_day))
-               daily.remove()
-
-   def rotate_weeklies(self):
-      expiration_date = datetime.today() - timedelta(days = 7 * config.max_weekly_backups)
-      for weekly in self.get_backups_in(WEEKLY):
-         if weekly.date < expiration_date:
-            weekly.remove()
+               backup.remove()
 
    def get_backups_in(self, directory):
       backups = []
@@ -228,6 +204,25 @@ class Backup(object):
       datestring = match_obj.group(3)
       time_struct = time.strptime(datestring, "%Y-%m-%d-%H%M")
       self.date = datetime(*time_struct[:5])
+
+   def is_rotation_time(self, period_name):
+      assert(period_name in ('hourly', 'daily', 'weekly'))
+
+      if period_name == 'hourly':
+         actual_time = self.date.hour
+         config_time = config.hourly_backup_hour
+      elif period_name == 'daily':
+         actual_time = self.date.weekday
+         config_time = config.weekly_backup_day
+      else:
+         return False
+
+      if actual_time == config_time:
+         LOGGER.debug('%s equals %s.' % (actual_time, config_time))
+         return True
+      else:
+         LOGGER.debug('%s is not %s.' % (actual_time, config_time))
+         return False
 
    def move_to(self, directory, archives_dir):
       destination_dir = os.path.join(archives_dir, self.account, directory);
@@ -303,20 +298,25 @@ def rotate_new_arrivals():
    for filename in os.listdir(config.backups_dir):
       if is_backup(filename):
          new_arrival = Backup(os.path.join(config.backups_dir, filename))
-         new_arrival.move_to(HOURLY, config.archives_dir)
+         new_arrival.move_to(HOURLY[0], config.archives_dir)
 
 ###################################################
 
 config = SimpleConfig()
 check_dirs()
 
-# For each account, rotate out new_arrivals, old dailies, old weeklies.
+#         period_name, next_period_name, max_age):
+HOURLY = ('hourly',   'daily',           timedelta(hours = 24))
+DAILY  = ('daily',    'weekly',          timedelta(days = 7))
+WEEKLY = ('weekly',   '',                timedelta(days = 7 * config.max_weekly_backups))
 
+
+# For each account, rotate out new_arrivals, old dailies, old weeklies.
 rotate_new_arrivals()
 
 for account in collect():
-    account.rotate_hourlies()
-    account.rotate_dailies()
-    account.rotate_weeklies()
+    account.rotate(*HOURLY)
+    account.rotate(*DAILY)
+    account.rotate(*WEEKLY)
 
 sys.exit(0)
