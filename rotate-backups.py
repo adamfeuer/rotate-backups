@@ -154,8 +154,8 @@ class SimpleConfig(object):
           else:
               r = self.config.get('Settings', setting)
 
-          if setting == 'backup_extensions':
-              r = self.parse_extensions(r)
+      if setting == 'backup_extensions':
+          r = self.parse_extensions(r)
 
       return r or DEFAULTS.get(setting)
 
