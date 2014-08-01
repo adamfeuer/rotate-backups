@@ -142,19 +142,20 @@ class SimpleConfig(object):
       global_configfile = '/etc/default/rotate-backups'
       local_configfile  = os.path.join(os.getenv("HOME"), ".rotate-backupsrc")
       self.config.read([global_configfile, local_configfile])
-      log_level = self.config.get('Settings', 'log_level')
+      log_level = self.config.get('Settings', 'log_level') if self.config.has_section('Settings') else None
       LOGGER.setLevel(allowed_log_levels.get(log_level, DEFAULTS["log_level"]))
 
    def __getattr__(self, setting):
       r = None
 
-      if setting in ('hourly_backup_hour', 'weekly_backup_day', 'max_weekly_backups'):
-         r = self.config.getint('Settings', setting)
-      else:
-         r = self.config.get('Settings', setting)
+      if self.config.has_section('Settings'):
+          if setting in ('hourly_backup_hour', 'weekly_backup_day', 'max_weekly_backups'):
+              r = self.config.getint('Settings', setting)
+          else:
+              r = self.config.get('Settings', setting)
 
-      if setting == 'backup_extensions':
-         r = self.parse_extensions(r)
+          if setting == 'backup_extensions':
+              r = self.parse_extensions(r)
 
       return r or DEFAULTS.get(setting)
 
