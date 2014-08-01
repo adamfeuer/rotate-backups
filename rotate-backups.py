@@ -149,13 +149,13 @@ class SimpleConfig(object):
       r = None
 
       if self.config.has_section('Settings'):
-          if setting in ('hourly_backup_hour', 'weekly_backup_day', 'max_weekly_backups'):
-              r = self.config.getint('Settings', setting)
-          else:
-              r = self.config.get('Settings', setting)
+         if setting in ('hourly_backup_hour', 'weekly_backup_day', 'max_weekly_backups'):
+            r = self.config.getint('Settings', setting)
+         else:
+            r = self.config.get('Settings', setting)
 
       if setting == 'backup_extensions':
-          r = self.parse_extensions(r)
+         r = self.parse_extensions(r)
 
       return r or DEFAULTS.get(setting)
 
