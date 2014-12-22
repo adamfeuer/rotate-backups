@@ -213,7 +213,7 @@ class Backup(object):
          actual_time = self.date.hour
          config_time = config.hourly_backup_hour
       elif period_name == 'daily':
-         actual_time = self.date.weekday
+         actual_time = self.date.weekday()
          config_time = config.weekly_backup_day
       else:
          return False
