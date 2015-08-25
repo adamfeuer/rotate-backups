@@ -75,9 +75,7 @@ log_level = ERROR
 Requirements
 ------------
 
-Python 2.7
-
-(I have not tested this with Python 3)
+Python 2.7 or Python 3.4
 
 Contact
 -------
@@ -123,7 +121,20 @@ DEFAULTS = {
 
 #############################################################################################
 
-import os, sys, time, re, csv, traceback, logging, ConfigParser, StringIO, shutil
+import os, sys, time, re, csv, traceback, logging, shutil
+
+PY3 = sys.version_info[0] == 3
+if not PY3: import StringIO  # StringIO does not exist in python3
+
+
+try:
+    # 3.x name
+    import configparser
+except ImportError:
+    # 2.x name
+    import ConfigParser as configparser
+
+
 from datetime import datetime, timedelta
 
 allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG }
@@ -138,7 +149,7 @@ LOGGER.addHandler(consoleHandler)
 
 class SimpleConfig(object):
    def __init__(self):
-      self.config = ConfigParser.ConfigParser()
+      self.config = configparser.ConfigParser()
       global_configfile = '/etc/default/rotate-backups'
       local_configfile  = os.path.join(os.getenv("HOME"), ".rotate-backupsrc")
       self.config.read([global_configfile, local_configfile])
@@ -160,7 +171,10 @@ class SimpleConfig(object):
       return r or DEFAULTS.get(setting)
 
    def parse_extensions(self, extensions_string):
-      parser = csv.reader(StringIO.StringIO(extensions_string))
+      if PY3:
+        parser = csv.reader([extensions_string])
+      else:
+        parser = csv.reader(StringIO.StringIO(extensions_string))
       return list(parser)[0]
 
 
@@ -185,7 +199,7 @@ class Account(object):
          for filename in os.listdir(path_to_dir):
             path_to_file = os.path.join(path_to_dir, filename)
             backups.append(Backup(path_to_file))
-      backups.sort()
+      backups.sort(key=lambda b: b.date)
       return backups
 
 
