@@ -75,9 +75,7 @@ log_level = ERROR
 Requirements
 ------------
 
-Python 2.7
-
-(I have not tested this with Python 3)
+Python 2.7 or Python 3.4
 
 Contact
 -------
@@ -123,7 +121,20 @@ DEFAULTS = {
 
 #############################################################################################
 
-import os, sys, time, re, csv, traceback, logging, ConfigParser, StringIO, shutil
+import os, sys, time, re, csv, traceback, logging, shutil
+
+PY3 = sys.version_info[0] == 3
+if not PY3: import StringIO  # StringIO does not exist in python3
+
+
+try:
+    # 3.x name
+    import configparser
+except ImportError:
+    # 2.x name
+    import ConfigParser as configparser
+
+
 from datetime import datetime, timedelta
 
 allowed_log_levels = { 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'WARNING': logging.WARNING, 'DEBUG': logging.DEBUG }
@@ -138,7 +149,7 @@ LOGGER.addHandler(consoleHandler)
 
 class SimpleConfig(object):
    def __init__(self):
-      self.config = ConfigParser.ConfigParser()
+      self.config = configparser.ConfigParser()
       global_configfile = '/etc/default/rotate-backups'
       local_configfile  = os.path.join(os.getenv("HOME"), ".rotate-backupsrc")
       self.config.read([global_configfile, local_configfile])
@@ -160,33 +171,23 @@ class SimpleConfig(object):
       return r or DEFAULTS.get(setting)
 
    def parse_extensions(self, extensions_string):
-      parser = csv.reader(StringIO.StringIO(extensions_string))
+      if PY3:
+        parser = csv.reader([extensions_string])
+      else:
+        parser = csv.reader(StringIO.StringIO(extensions_string))
       return list(parser)[0]
 
 
-class Account(object):
-   def __init__(self, account_name):
-      self.base_path = '%s/%s/' % (config.archives_dir, account_name)
-
-   def rotate(self, period_name, next_period_name, max_age):
-      earliest_creation_date = datetime.now() - max_age
-      for backup in self.get_backups_in(period_name):
-         if backup.date < earliest_creation_date:
-            # This backup is too old, move to other backup directory or delete.
-            if next_period_name and backup.is_rotation_time(period_name):
-               backup.move_to(next_period_name, config.archives_dir)
-            else:
-               backup.remove()
-
-   def get_backups_in(self, directory):
-      backups = []
-      path_to_dir = '%s%s/' % (self.base_path, directory)
-      if os.path.isdir(path_to_dir):
-         for filename in os.listdir(path_to_dir):
-            path_to_file = os.path.join(path_to_dir, filename)
-            backups.append(Backup(path_to_file))
-      backups.sort()
-      return backups
+def get_backups_in(account_name, directory, archives_dir):
+  base_path = '%s/%s/' % (archives_dir, account_name)
+  path_to_dir = '%s%s/' % (base_path, directory)
+  backups = []
+  if os.path.isdir(path_to_dir):
+     for filename in os.listdir(path_to_dir):
+        path_to_file = os.path.join(path_to_dir, filename)
+        backups.append(Backup(path_to_file))
+  backups.sort(key=lambda b: b.date)
+  return backups
 
 
 class Backup(object):
@@ -266,45 +267,61 @@ class Backup(object):
       return cmp( x.date, y.date)
 
 
-def is_backup(filename):
-   for extension in config.backup_extensions:
+def is_backup(filename, backup_extensions):
+   for extension in backup_extensions:
       if filename.endswith(extension):
           return True
    return False
 
-def collect():
+def collect(archives_dir):
    """Return a collection of account objects for all accounts in backup directory."""
    accounts = []
    # Append all account names from archives_dir.
-   for account_name in os.listdir(config.archives_dir):
+   for account_name in os.listdir(archives_dir):
       accounts.append(account_name)
    accounts = sorted(list(set(accounts))) # Uniquify.
-   return map(Account, accounts)
+   return accounts
 
-def check_dirs():
+
+def check_dirs(backups_dir, archives_dir):
    # Make sure backups_dir actually exists.
-   if not os.path.isdir(config.backups_dir):
-      LOGGER.error("Unable to find backups directory: %s." % config.backups_dir)
+   if not os.path.isdir(backups_dir):
+      LOGGER.error("Unable to find backups directory: %s." % backups_dir)
       sys.exit(1)
 
    # Make sure archives_dir actually exists.
-   if not os.path.isdir(config.archives_dir):
+   if not os.path.isdir(archives_dir):
       try:
-         os.mkdir(config.archives_dir)
+         os.mkdir(archives_dir)
       except:
-         LOGGER.error("Unable to create archives directory: %s." % config.archives_dir)
+         LOGGER.error("Unable to create archives directory: %s." % archives_dir)
          sys.exit(1)
 
-def rotate_new_arrivals():
-   for filename in os.listdir(config.backups_dir):
-      if is_backup(filename):
-         new_arrival = Backup(os.path.join(config.backups_dir, filename))
-         new_arrival.move_to(HOURLY[0], config.archives_dir)
+def rotate_new_arrivals(backups_dir, archives_dir, backup_extensions):
+   for filename in os.listdir(backups_dir):
+      if is_backup(filename, backup_extensions=backup_extensions):
+         new_arrival = Backup(os.path.join(backups_dir, filename))
+         new_arrival.move_to(HOURLY[0], archives_dir)
+
+
+def rotate(account_name, period_name, next_period_name, max_age, archives_dir):
+  earliest_creation_date = datetime.now() - max_age
+  for backup in get_backups_in(
+    account_name=account_name,
+    directory=period_name,
+    archives_dir=archives_dir,
+  ):
+     if backup.date < earliest_creation_date:
+        # This backup is too old, move to other backup directory or delete.
+        if next_period_name and backup.is_rotation_time(period_name):
+           backup.move_to(next_period_name, archives_dir)
+        else:
+           backup.remove()
+
 
 ###################################################
 
 config = SimpleConfig()
-check_dirs()
 
 #         period_name, next_period_name, max_age):
 HOURLY = ('hourly',   'daily',           timedelta(hours = 24))
@@ -312,12 +329,22 @@ DAILY  = ('daily',    'weekly',          timedelta(days = 7))
 WEEKLY = ('weekly',   '',                timedelta(days = 7 * config.max_weekly_backups))
 
 
-# For each account, rotate out new_arrivals, old dailies, old weeklies.
-rotate_new_arrivals()
+check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
 
-for account in collect():
-    account.rotate(*HOURLY)
-    account.rotate(*DAILY)
-    account.rotate(*WEEKLY)
+# For each account, rotate out new_arrivals, old dailies, old weeklies.
+rotate_new_arrivals(
+  backups_dir=config.backups_dir,
+  archives_dir=config.archives_dir,
+  backup_extensions=config.backup_extensions,
+)
+
+
+kw = dict(
+  archives_dir=config.archives_dir,
+)
+for account_name in collect(archives_dir=config.archives_dir):
+    rotate(account_name, *HOURLY, **kw)
+    rotate(account_name, *DAILY, **kw)
+    rotate(account_name, *WEEKLY, **kw)
 
 sys.exit(0)
