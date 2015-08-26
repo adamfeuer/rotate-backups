@@ -207,25 +207,6 @@ class Backup(object):
       time_struct = time.strptime(datestring, "%Y-%m-%d-%H%M")
       self.date = datetime(*time_struct[:5])
 
-   def is_rotation_time(self, period_name):
-      assert(period_name in ('hourly', 'daily', 'weekly'))
-
-      if period_name == 'hourly':
-         actual_time = self.date.hour
-         config_time = config.hourly_backup_hour
-      elif period_name == 'daily':
-         actual_time = self.date.weekday()
-         config_time = config.weekly_backup_day
-      else:
-         return False
-
-      if actual_time == config_time:
-         LOGGER.debug('%s equals %s.' % (actual_time, config_time))
-         return True
-      else:
-         LOGGER.debug('%s is not %s.' % (actual_time, config_time))
-         return False
-
    def move_to(self, directory, archives_dir):
       destination_dir = os.path.join(archives_dir, self.account, directory);
       new_filepath = os.path.join(archives_dir, self.account, directory, self.filename)
@@ -304,6 +285,26 @@ def rotate_new_arrivals(backups_dir, archives_dir, backup_extensions):
          new_arrival.move_to(HOURLY[0], archives_dir)
 
 
+def is_rotation_time(date, period_name):
+  assert(period_name in ('hourly', 'daily', 'weekly'))
+
+  if period_name == 'hourly':
+     actual_time = date.hour
+     config_time = config.hourly_backup_hour
+  elif period_name == 'daily':
+     actual_time = date.weekday()
+     config_time = config.weekly_backup_day
+  else:
+     return False
+
+  if actual_time == config_time:
+     LOGGER.debug('%s equals %s.' % (actual_time, config_time))
+     return True
+  else:
+     LOGGER.debug('%s is not %s.' % (actual_time, config_time))
+     return False
+
+
 def rotate(account_name, period_name, next_period_name, max_age, archives_dir):
   earliest_creation_date = datetime.now() - max_age
   for backup in get_backups_in(
@@ -313,11 +314,59 @@ def rotate(account_name, period_name, next_period_name, max_age, archives_dir):
   ):
      if backup.date < earliest_creation_date:
         # This backup is too old, move to other backup directory or delete.
-        if next_period_name and backup.is_rotation_time(period_name):
+        if next_period_name and is_rotation_time(
+          date=backup.date,
+          period_name=period_name,
+        ):
            backup.move_to(next_period_name, archives_dir)
         else:
            backup.remove()
 
+
+def run_tests():
+  import tempfile
+
+  class TempDirContext(object):
+    def __init__(self, **tempfilekwargs):
+      self.tempfilekwargs = tempfilekwargs
+
+    def __enter__(self):
+      self.dir = tempfile.mkdtemp(**self.tempfilekwargs)
+      print('Created {}'.format(self.dir))
+      return self.dir
+
+    def __exit__(self, exc_type, exc_value, traceback):
+      print('Removing {} and subfolders...'.format(self.dir))
+      shutil.rmtree(self.dir)
+      print('Removed {}'.format(self.dir))
+
+
+  def create_basedirs(path):
+    basedir = os.path.dirname(path)
+    if not os.path.exists(basedir):
+      os.makedirs(basedir)
+
+  def create_empty_file(filename):
+    assert not os.path.exists(filename)
+    create_basedirs(path=filename)
+    open(filename, 'a').close()
+
+  # first test
+  with TempDirContext(prefix='rotate-backup-tmp') as tmpdir:
+    create_empty_file(os.path.join(tmpdir, 'latest/dbdump.tar.bz2'))
+    create_basedirs(os.path.join(tmpdir, 'archives'))
+
+    backups_dir = os.path.join(tmpdir, 'latest')
+    archives_dir = os.path.join(tmpdir, 'archives')
+
+    assert len(os.listdir(backups_dir)) == 1
+    rotate_new_arrivals(
+      backups_dir=backups_dir,
+      archives_dir=archives_dir,
+      backup_extensions=config.backup_extensions,
+    )
+    assert len(os.listdir(backups_dir)) == 0
+    # TODO more assertions
 
 ###################################################
 
@@ -329,22 +378,32 @@ DAILY  = ('daily',    'weekly',          timedelta(days = 7))
 WEEKLY = ('weekly',   '',                timedelta(days = 7 * config.max_weekly_backups))
 
 
-check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
+if __name__ == '__main__':
 
-# For each account, rotate out new_arrivals, old dailies, old weeklies.
-rotate_new_arrivals(
-  backups_dir=config.backups_dir,
-  archives_dir=config.archives_dir,
-  backup_extensions=config.backup_extensions,
-)
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--test", help="Run tests", action="store_true")
+  args = parser.parse_args()
+  if args.test:
+    run_tests()
+    sys.exit(0)
+
+  check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
+
+  # For each account, rotate out new_arrivals, old dailies, old weeklies.
+  rotate_new_arrivals(
+    backups_dir=config.backups_dir,
+    archives_dir=config.archives_dir,
+    backup_extensions=config.backup_extensions,
+  )
 
 
-kw = dict(
-  archives_dir=config.archives_dir,
-)
-for account_name in collect(archives_dir=config.archives_dir):
-    rotate(account_name, *HOURLY, **kw)
-    rotate(account_name, *DAILY, **kw)
-    rotate(account_name, *WEEKLY, **kw)
+  kw = dict(
+    archives_dir=config.archives_dir,
+  )
+  for account_name in collect(archives_dir=config.archives_dir):
+      rotate(account_name, *HOURLY, **kw)
+      rotate(account_name, *DAILY, **kw)
+      rotate(account_name, *WEEKLY, **kw)
 
-sys.exit(0)
+  sys.exit(0)
