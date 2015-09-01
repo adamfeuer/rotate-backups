@@ -323,8 +323,11 @@ def rotate(account_name, period_name, next_period_name, max_age, archives_dir):
            backup.remove()
 
 
-def run_tests():
+try:
+  import pytest
+
   import tempfile
+
 
   class TempDirContext(object):
     def __init__(self, **tempfilekwargs):
@@ -346,27 +349,49 @@ def run_tests():
     if not os.path.exists(basedir):
       os.makedirs(basedir)
 
+
   def create_empty_file(filename):
     assert not os.path.exists(filename)
     create_basedirs(path=filename)
     open(filename, 'a').close()
 
-  # first test
-  with TempDirContext(prefix='rotate-backup-tmp') as tmpdir:
-    create_empty_file(os.path.join(tmpdir, 'latest/dbdump.tar.bz2'))
-    create_basedirs(os.path.join(tmpdir, 'archives'))
 
-    backups_dir = os.path.join(tmpdir, 'latest')
-    archives_dir = os.path.join(tmpdir, 'archives')
+  def test_rotate_new_arrivals_moves_correctly():
+    with TempDirContext(prefix='rotate-backup-tmp') as tmpdir:
+      create_empty_file(os.path.join(tmpdir, 'latest/dbdump.tar.bz2'))
+      create_basedirs(os.path.join(tmpdir, 'archives'))
 
-    assert len(os.listdir(backups_dir)) == 1
-    rotate_new_arrivals(
-      backups_dir=backups_dir,
-      archives_dir=archives_dir,
-      backup_extensions=config.backup_extensions,
-    )
-    assert len(os.listdir(backups_dir)) == 0
-    # TODO more assertions
+      backups_dir = os.path.join(tmpdir, 'latest')
+      archives_dir = os.path.join(tmpdir, 'archives')
+
+      assert len(os.listdir(backups_dir)) == 1
+      rotate_new_arrivals(
+        backups_dir=backups_dir,
+        archives_dir=archives_dir,
+        backup_extensions=DEFAULTS['backup_extensions'],
+      )
+      assert len(os.listdir(backups_dir)) == 0
+
+
+  def test_rotate_new_arrivals_ignores_unmatched_files():
+    with TempDirContext(prefix='rotate-backup-tmp') as tmpdir:
+      create_empty_file(os.path.join(tmpdir, 'latest/dbdump.tar.bz22'))
+      create_basedirs(os.path.join(tmpdir, 'archives'))
+
+      backups_dir = os.path.join(tmpdir, 'latest')
+      archives_dir = os.path.join(tmpdir, 'archives')
+
+      assert len(os.listdir(backups_dir)) == 1
+      rotate_new_arrivals(
+        backups_dir=backups_dir,
+        archives_dir=archives_dir,
+        backup_extensions=DEFAULTS['backup_extensions'],
+      )
+      assert len(os.listdir(backups_dir)) == 1
+
+
+except ImportError:
+  pass
 
 ###################################################
 
@@ -382,11 +407,8 @@ if __name__ == '__main__':
 
   import argparse
   parser = argparse.ArgumentParser()
-  parser.add_argument("--test", help="Run tests", action="store_true")
+  # parser.add_argument("--noconfig", help="don't look for config file", action="store_true")
   args = parser.parse_args()
-  if args.test:
-    run_tests()
-    sys.exit(0)
 
   check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
 
