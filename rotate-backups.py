@@ -417,21 +417,24 @@ try:
 
 
 
+
+
+
+
+
 except ImportError:
   pass
 
 ###################################################
 
 
-if __name__ == '__main__':
-
-  import argparse
-  parser = argparse.ArgumentParser()
-  # parser.add_argument("--noconfig", help="don't look for config file", action="store_true")
-  args = parser.parse_args()
-
-  config = SimpleConfig()
-
+def do_move_to_archive_and_rotate(
+  backups_dir,
+  archives_dir,
+  backup_extensions,
+  max_weekly_backups,
+  **unused_config
+):
   check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
 
   # For each account, rotate out new_arrivals, old dailies, old weeklies.
@@ -469,5 +472,17 @@ if __name__ == '__main__':
       max_age=timedelta(days=7*config.max_weekly_backups),
       **kw
     )
+
+
+if __name__ == '__main__':
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--noconfig", help="don't look for config file", action="store_true")
+  args = parser.parse_args()
+
+  config = SimpleConfig()
+  do_move_to_archive_and_rotate(
+    **config.config.__dict__['_sections']['Settings']
+  )
 
   sys.exit(0)
