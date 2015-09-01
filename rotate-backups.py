@@ -278,11 +278,11 @@ def check_dirs(backups_dir, archives_dir):
          LOGGER.error("Unable to create archives directory: %s." % archives_dir)
          sys.exit(1)
 
-def rotate_new_arrivals(backups_dir, archives_dir, backup_extensions):
+def rotate_new_arrivals(backups_dir, archives_dir, backup_extensions, period_name):
    for filename in os.listdir(backups_dir):
       if is_backup(filename, backup_extensions=backup_extensions):
          new_arrival = Backup(os.path.join(backups_dir, filename))
-         new_arrival.move_to(HOURLY[0], archives_dir)
+         new_arrival.move_to(period_name, archives_dir)
 
 
 def is_rotation_time(date, period_name):
@@ -365,15 +365,24 @@ try:
       archives_dir = os.path.join(tmpdir, 'archives')
 
       assert len(os.listdir(backups_dir)) == 1
+      assert not os.path.exists(archives_dir)
+
       rotate_new_arrivals(
         backups_dir=backups_dir,
         archives_dir=archives_dir,
         backup_extensions=DEFAULTS['backup_extensions'],
+        period_name='hourly',
       )
+
       assert len(os.listdir(backups_dir)) == 0
+      assert os.listdir(archives_dir) == ['dbdump']
+      assert os.listdir(os.path.join(archives_dir, 'dbdump')) == ['hourly']
+      result_files = os.listdir(os.path.join(archives_dir, 'dbdump/hourly'))
+      assert result_files[0].startswith('dbdump-')
+      assert result_files[0].endswith('.tar.bz2')
 
 
-  def test_rotate_new_arrivals_ignores_unmatched_files():
+  def test_rotate_new_arrivals_ignores_unmatched_files_and_does_not_create_archives_dir():
     with TempDirContext(prefix='rotate-backup-tmp') as tmpdir:
       create_empty_file(os.path.join(tmpdir, 'latest/dbdump.tar.bz22'))
       create_basedirs(os.path.join(tmpdir, 'archives'))
@@ -382,25 +391,23 @@ try:
       archives_dir = os.path.join(tmpdir, 'archives')
 
       assert len(os.listdir(backups_dir)) == 1
+      assert not os.path.exists(archives_dir)
+
       rotate_new_arrivals(
         backups_dir=backups_dir,
         archives_dir=archives_dir,
         backup_extensions=DEFAULTS['backup_extensions'],
+        period_name='hourly'
       )
       assert len(os.listdir(backups_dir)) == 1
+      assert not os.path.exists(archives_dir)
+
 
 
 except ImportError:
   pass
 
 ###################################################
-
-config = SimpleConfig()
-
-#         period_name, next_period_name, max_age):
-HOURLY = ('hourly',   'daily',           timedelta(hours = 24))
-DAILY  = ('daily',    'weekly',          timedelta(days = 7))
-WEEKLY = ('weekly',   '',                timedelta(days = 7 * config.max_weekly_backups))
 
 
 if __name__ == '__main__':
@@ -410,6 +417,8 @@ if __name__ == '__main__':
   # parser.add_argument("--noconfig", help="don't look for config file", action="store_true")
   args = parser.parse_args()
 
+  config = SimpleConfig()
+
   check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
 
   # For each account, rotate out new_arrivals, old dailies, old weeklies.
@@ -417,15 +426,33 @@ if __name__ == '__main__':
     backups_dir=config.backups_dir,
     archives_dir=config.archives_dir,
     backup_extensions=config.backup_extensions,
+    period_name='hourly',
   )
-
 
   kw = dict(
     archives_dir=config.archives_dir,
   )
   for account_name in collect(archives_dir=config.archives_dir):
-      rotate(account_name, *HOURLY, **kw)
-      rotate(account_name, *DAILY, **kw)
-      rotate(account_name, *WEEKLY, **kw)
+    rotate(
+      account_name=account_name,
+      period_name='hourly',
+      next_period_name='daily',
+      max_age=timedelta(hours=24),
+      **kw
+    )
+    rotate(
+      account_name=account_name,
+      period_name='daily',
+      next_period_name='weekly',
+      max_age=timedelta(days=7),
+      **kw
+    )
+    rotate(
+      account_name=account_name,
+      period_name='weekly',
+      next_period_name='',
+      max_age=timedelta(days=7*config.max_weekly_backups),
+      **kw
+    )
 
   sys.exit(0)
