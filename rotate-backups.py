@@ -285,15 +285,20 @@ def rotate_new_arrivals(backups_dir, archives_dir, backup_extensions, period_nam
          new_arrival.move_to(period_name, archives_dir)
 
 
-def is_rotation_time(date, period_name):
+def is_rotation_time(
+  date,
+  period_name,
+  hourly_backup_hour,
+  weekly_backup_day,
+):
   assert(period_name in ('hourly', 'daily', 'weekly'))
 
   if period_name == 'hourly':
      actual_time = date.hour
-     config_time = config.hourly_backup_hour
+     config_time = hourly_backup_hour
   elif period_name == 'daily':
      actual_time = date.weekday()
-     config_time = config.weekly_backup_day
+     config_time = weekly_backup_day
   else:
      return False
 
@@ -305,7 +310,14 @@ def is_rotation_time(date, period_name):
      return False
 
 
-def rotate(account_name, period_name, next_period_name, max_age, archives_dir):
+def rotate(
+  account_name,
+  period_name,
+  next_period_name,
+  max_age,
+  archives_dir,
+  **is_rotation_time_kw
+):
   earliest_creation_date = datetime.now() - max_age
   for backup in get_backups_in(
     account_name=account_name,
@@ -317,6 +329,7 @@ def rotate(account_name, period_name, next_period_name, max_age, archives_dir):
         if next_period_name and is_rotation_time(
           date=backup.date,
           period_name=period_name,
+          **is_rotation_time_kw
         ):
            backup.move_to(next_period_name, archives_dir)
         else:
@@ -431,6 +444,8 @@ if __name__ == '__main__':
 
   kw = dict(
     archives_dir=config.archives_dir,
+    hourly_backup_hour=config.hourly_backup_hour,
+    weekly_backup_day=config.weekly_backup_day,
   )
   for account_name in collect(archives_dir=config.archives_dir):
     rotate(
