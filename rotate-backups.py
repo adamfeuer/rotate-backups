@@ -416,10 +416,18 @@ try:
       assert not os.path.exists(archives_dir)
 
 
+  # def test_get_backups_in_returns_backup_objects():
+  #   assert 0
+  #   ret = get_backups_in(account_name, directory, archives_dir)
+  #   assert isinstance(ret[0], Backup)
 
 
+  # def test_rotate_removes_old_backups():
+  #   assert 0
 
 
+  # def test_rotate_moves_backups():
+  #   assert 0
 
 
 except ImportError:
@@ -433,43 +441,44 @@ def do_move_to_archive_and_rotate(
   archives_dir,
   backup_extensions,
   max_weekly_backups,
+  hourly_backup_hour,
+  weekly_backup_day,
   **unused_config
 ):
-  check_dirs(backups_dir=config.backups_dir, archives_dir=config.archives_dir)
+  check_dirs(backups_dir=backups_dir, archives_dir=archives_dir)
 
   # For each account, rotate out new_arrivals, old dailies, old weeklies.
   rotate_new_arrivals(
-    backups_dir=config.backups_dir,
-    archives_dir=config.archives_dir,
-    backup_extensions=config.backup_extensions,
+    backups_dir=backups_dir,
+    archives_dir=archives_dir,
+    backup_extensions=backup_extensions,
     period_name='hourly',
   )
 
-  kw = dict(
-    archives_dir=config.archives_dir,
-    hourly_backup_hour=config.hourly_backup_hour,
-    weekly_backup_day=config.weekly_backup_day,
-  )
-  for account_name in collect(archives_dir=config.archives_dir):
-    rotate(
+  for account_name in collect(archives_dir=archives_dir):
+    kw = dict(
+      archives_dir=archives_dir,
+      hourly_backup_hour=hourly_backup_hour,
+      weekly_backup_day=weekly_backup_day,
       account_name=account_name,
+    )
+
+    rotate(
       period_name='hourly',
       next_period_name='daily',
       max_age=timedelta(hours=24),
       **kw
     )
     rotate(
-      account_name=account_name,
       period_name='daily',
       next_period_name='weekly',
       max_age=timedelta(days=7),
       **kw
     )
     rotate(
-      account_name=account_name,
       period_name='weekly',
       next_period_name='',
-      max_age=timedelta(days=7*config.max_weekly_backups),
+      max_age=timedelta(days=7*max_weekly_backups),
       **kw
     )
 
@@ -480,9 +489,11 @@ if __name__ == '__main__':
   parser.add_argument("--noconfig", help="don't look for config file", action="store_true")
   args = parser.parse_args()
 
-  config = SimpleConfig()
-  do_move_to_archive_and_rotate(
-    **config.config.__dict__['_sections']['Settings']
-  )
+  config = SimpleConfig().config.__dict__['_sections']['Settings']
+  config['max_weekly_backups'] = int(config['max_weekly_backups'])
+  config['hourly_backup_hour'] = int(config['hourly_backup_hour'])
+  config['weekly_backup_day'] = int(config['weekly_backup_day'])
+
+  do_move_to_archive_and_rotate(**config)
 
   sys.exit(0)
